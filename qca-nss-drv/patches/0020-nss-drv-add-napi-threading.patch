@@ -1,0 +1,100 @@
+--- a/nss_hal/nss_hal.c
++++ b/nss_hal/nss_hal.c
+@@ -313,6 +313,7 @@ int nss_hal_probe(struct platform_device
+ 	 * Initialize the dummy netdevice.
+ 	 */
+ 	init_dummy_netdev(&nss_ctx->napi_ndev);
++	strcpy(nss_ctx->napi_ndev.name, "nss");
+ 
+ 	for (i = 0; i < npd->num_irq; i++) {
+ 		err = nss_hal_register_irq(nss_ctx, npd, &nss_ctx->napi_ndev, i);
+--- a/nss_core.c
++++ b/nss_core.c
+@@ -2494,8 +2494,7 @@ int nss_core_handle_napi(struct napi_str
+ 		int_ctx->cause |= int_cause;
+ 	} while ((int_ctx->cause) && (budget));
+ 
+-	if (int_ctx->cause == 0) {
+-		napi_complete(napi);
++	if (int_ctx->cause == 0 && napi_complete(napi)) {
+ 
+ 		/*
+ 		 * Re-enable any further interrupt from this IRQ
+@@ -2535,8 +2534,8 @@ int nss_core_handle_napi_sdma(struct nap
+ 		ctrl->consumer[0].dispatch.fp(ctrl->consumer[0].arg.kp);
+ 
+ #if !defined(NSS_HAL_IPQ806X_SUPPORT)
+-	napi_complete(napi);
+-	enable_irq(int_ctx->irq);
++	if (napi_complete(napi))
++		enable_irq(int_ctx->irq);
+ #endif
+ 	return 0;
+ }
+@@ -2551,10 +2550,8 @@ int nss_core_handle_napi_queue(struct na
+ 	struct int_ctx_instance *int_ctx = container_of(napi, struct int_ctx_instance, napi);
+ 
+ 	processed = nss_core_handle_cause_queue(int_ctx, int_ctx->cause, budget);
+-	if (processed < budget) {
+-		napi_complete(napi);
++	if (processed < budget && napi_complete(napi))
+ 		enable_irq(int_ctx->irq);
+-	}
+ 
+ 	return processed;
+ }
+@@ -2568,8 +2565,8 @@ int nss_core_handle_napi_non_queue(struc
+ 	struct int_ctx_instance *int_ctx = container_of(napi, struct int_ctx_instance, napi);
+ 
+ 	nss_core_handle_cause_nonqueue(int_ctx, int_ctx->cause, 0);
+-	napi_complete(napi);
+-	enable_irq(int_ctx->irq);
++	if (napi_complete(napi))
++		enable_irq(int_ctx->irq);
+ 	return 0;
+ }
+ 
+--- a/nss_hal/ipq807x/nss_hal_pvt.c
++++ b/nss_hal/ipq807x/nss_hal_pvt.c
+@@ -751,7 +751,7 @@ static int __nss_hal_request_irq(struct
+ 		return err;
+ 	}
+ 
+-	netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, napi_poll_cb, napi_wgt);
++	netif_threaded_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, napi_poll_cb, napi_wgt);
+ 	int_ctx->cause = cause;
+ 	err = request_irq(irq, nss_hal_handle_irq, 0, irq_name, int_ctx);
+ 	if (err) {
+--- a/nss_hal/ipq806x/nss_hal_pvt.c
++++ b/nss_hal/ipq806x/nss_hal_pvt.c
+@@ -1185,7 +1185,7 @@ static int __nss_hal_request_irq(struct
+ 	}
+ 
+ 	int_ctx->irq = npd->irq[irq_num];
+-	netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi, 64);
++	netif_threaded_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi, 64);
+ 
+ 	return 0;
+ }
+--- a/nss_hal/ipq50xx/nss_hal_pvt.c
++++ b/nss_hal/ipq50xx/nss_hal_pvt.c
+@@ -599,7 +599,7 @@ static int __nss_hal_request_irq(struct
+ 		return err;
+ 	}
+ 
+-	netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, napi_poll_cb, napi_wgt);
++	netif_threaded_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, napi_poll_cb, napi_wgt);
+ 	int_ctx->cause = cause;
+ 	err = request_irq(irq, nss_hal_handle_irq, 0, irq_name, int_ctx);
+ 	if (err) {
+--- a/nss_hal/ipq60xx/nss_hal_pvt.c
++++ b/nss_hal/ipq60xx/nss_hal_pvt.c
+@@ -707,7 +707,7 @@ static int __nss_hal_request_irq(struct
+ 		return err;
+ 	}
+ 
+-	netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, napi_poll_cb, napi_wgt);
++	netif_threaded_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, napi_poll_cb, napi_wgt);
+ 	int_ctx->cause = cause;
+ 	err = request_irq(irq, nss_hal_handle_irq, 0, irq_name, int_ctx);
+ 	if (err) {
