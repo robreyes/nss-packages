@@ -1,0 +1,11 @@
+--- a/qmi_wwan_q.c
++++ b/qmi_wwan_q.c
+@@ -42,6 +42,8 @@
+ #define ETH_P_MAP 0xDA1A
+ #endif
+ 
++#define CONFIG_BRIDGE_MODULE
++
+ #ifndef ARPHRD_RAWIP
+ #define ARPHRD_RAWIP ARPHRD_NONE
+ #endif
