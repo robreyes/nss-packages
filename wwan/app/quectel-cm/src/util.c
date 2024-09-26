@@ -176,31 +176,44 @@ void update_resolv_conf(int iptype, const char *ifname, const char *dns1, const 
     char dns_line[256];
     #define MAX_DNS 16
     char *dns_info[MAX_DNS];
-    char dns_tag[64];
-    int dns_match = 0;
+    char dns_start_tag[64], dns_end_tag[64];
+    int inside_block = 0, dns_match = 0;
     int i;
 
-    snprintf(dns_tag, sizeof(dns_tag), "# IPV%d %s", iptype, ifname);
+    // Prepare the tags for START and END markers
+    snprintf(dns_start_tag, sizeof(dns_start_tag), "# START IPV%d %s", iptype, ifname);
+    snprintf(dns_end_tag, sizeof(dns_end_tag), "# END IPV%d %s", iptype, ifname);
 
     for (i = 0; i < MAX_DNS; i++)
         dns_info[i] = NULL;
     
     dns_fp = fopen(dns_file, "r");
     if (dns_fp) {
-        i = 0;    
+        i = 0;
         dns_line[sizeof(dns_line)-1] = '\0';
-        
+
         while((fgets(dns_line, sizeof(dns_line)-1, dns_fp)) != NULL) {
             if ((strlen(dns_line) > 1) && (dns_line[strlen(dns_line) - 1] == '\n'))
                 dns_line[strlen(dns_line) - 1] = '\0';
-            //dbg_time("%s", dns_line);
-            if (strstr(dns_line, dns_tag)) {
-                dns_match++;
+
+            if (strstr(dns_line, dns_start_tag)) {
+                inside_block = 1;
                 continue;
             }
-            dns_info[i++] = strdup(dns_line);
-            if (i == MAX_DNS)
-                break;
+
+            if (inside_block && strstr(dns_line, dns_end_tag)) {
+                inside_block = 0;
+                continue;
+            }
+
+            if (inside_block) {
+                dns_match++;
+            }
+            else {
+                dns_info[i++] = strdup(dns_line);
+                if (i == MAX_DNS)
+                    break;
+            }
         }
 
         fclose(dns_fp);
@@ -209,17 +222,21 @@ void update_resolv_conf(int iptype, const char *ifname, const char *dns1, const 
         dbg_time("fopen %s fail, errno:%d (%s)", dns_file, errno, strerror(errno));
         return;
     }
-    
+
     if (dns1 == NULL && dns_match == 0)
         return;
 
     dns_fp = fopen(dns_file, "w");
     if (dns_fp) {
-        if (dns1)
-            fprintf(dns_fp, "nameserver %s %s\n", dns1, dns_tag);
-        if (dns2)
-            fprintf(dns_fp, "nameserver %s %s\n", dns2, dns_tag);
-        
+        if (dns1 || dns2) {
+            fprintf(dns_fp, "%s\n", dns_start_tag);
+            if (dns1)
+                fprintf(dns_fp, "nameserver %s\n", dns1);
+            if (dns2)
+                fprintf(dns_fp, "nameserver %s\n", dns2);
+            fprintf(dns_fp, "%s\n", dns_end_tag);
+        }
+
         for (i = 0; i < MAX_DNS && dns_info[i]; i++)
             fprintf(dns_fp, "%s\n", dns_info[i]);
         fclose(dns_fp);
