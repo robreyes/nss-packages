@@ -71,6 +71,7 @@ return network.registerProtocol('quectel', {
 		apn = s.taboption('general', form.Value, 'apn', _('APN'));
 		apn.depends('pdptype', 'ipv4v6');
 		apn.depends('pdptype', 'ipv4');
+		apn.depends({pdptype: 'ipv6', multiplexing: '0'});
 		apn.validate = function(section_id, value) {
 			if (value == null || value == '')
 				return true;
@@ -140,6 +141,9 @@ return network.registerProtocol('quectel', {
 		o.depends({ pdptype: 'ipv6', multiplexing: '1' });
 		o.placeholder = '2';
 		o.datatype = 'and(uinteger,min(1),max(7))';
+
+		o = s.taboption('advanced', form.Flag, 'create_virtual_interface', _('Auto-create virtual interface'));
+		o.default = o.enabled;
 
 		o = s.taboption('general', form.ListValue, 'pdptype', _('PDP Type'));
 		o.value('ipv4v6', 'IPv4/IPv6');

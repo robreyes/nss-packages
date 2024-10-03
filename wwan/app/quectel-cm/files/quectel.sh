@@ -11,6 +11,7 @@ proto_quectel_init_config() {
 	no_device=1
 	proto_config_add_string "device:device"
 	proto_config_add_boolean "multiplexing"
+	proto_config_add_boolean "create_virtual_interface"
 	proto_config_add_string "apn"
 	proto_config_add_string "apnv6"
 	proto_config_add_string "pdnindex"
@@ -32,12 +33,12 @@ proto_quectel_init_config() {
 
 proto_quectel_setup() {
 	local interface="$1"
-	local device apn apnv6 auth username password pincode delay pdptype pdnindex pdnindexv6 multiplexing cell_lock_4g
+	local device apn apnv6 auth username password pincode delay pdptype pdnindex pdnindexv6 multiplexing create_virtual_interface cell_lock_4g
 	local dhcp dhcpv6 sourcefilter delegate mtu $PROTO_DEFAULT_OPTIONS
 	local ip4table ip6table
 	local pid zone
 
-	json_get_vars device apn apnv6 auth username password pincode delay pdnindex pdnindexv6 multiplexing
+	json_get_vars device apn apnv6 auth username password pincode delay pdnindex pdnindexv6 multiplexing create_virtual_interface
 	json_get_vars pdptype dhcp dhcpv6 sourcefilter delegate ip4table
 	json_get_vars ip6table mtu $PROTO_DEFAULT_OPTIONS
 
@@ -62,13 +63,14 @@ proto_quectel_setup() {
 
 		if [ "$idx" -gt 0 ]; then
 			cell_ids="${idx}${cell_ids}"
-			echo -e "AT+QNWLOCK=\"COMMON/4G\",${cell_ids}" | atinout - /dev/ttyUSB2 -
+			echo -ne "AT+QNWLOCK=\"COMMON/4G\",${cell_ids}\r\n" > /dev/ttyUSB2
 		fi
 	else
-		echo -e "AT+QNWLOCK=\"COMMON/4G\",0" | atinout - /dev/ttyUSB2 -
+		echo -ne "AT+QNWLOCK=\"COMMON/4G\",0\r\n" > /dev/ttyUSB2
 	fi
 
 	[ -n "$metric" ] || metric="0"
+	[ -n "$create_virtual_interface" ] || create_virtual_interface="1"
 	[ -z "$ctl_device" ] || device="$ctl_device"
 
 	[ -n "$device" ] || {
@@ -138,6 +140,10 @@ proto_quectel_setup() {
 	proto_init_update "$ifname" 1
 	proto_set_keep 1
 	proto_send_update "$interface"
+
+	if [ "$create_virtual_interface" -ne 1 ]; then
+		return 0;
+	fi
 
 	zone="$(fw3 -q network "$interface" 2>/dev/null)"
 
