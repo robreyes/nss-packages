@@ -527,7 +527,7 @@ void udhcpc_start(PROFILE_T *profile) {
     }
 #endif
 
-    if (profile->ipv4.Address == 0)
+    if (profile->ipv4.Address == 0 || profile->openwrt_mode)
         goto set_ipv6;
 
     if (profile->no_dhcp || profile->request_ops == &mbim_request_ops) { //lots of mbim modem do not support DHCP
@@ -655,22 +655,24 @@ set_ipv6:
             close(forward_fd);
         }
 
-        update_ip_address_by_qmi(ifname, NULL, &profile->ipv6);
+        if(!profile->openwrt_mode) {
 
-        if (profile->ipv6.DnsPrimary[0] || profile->ipv6.DnsSecondary[0]) {
-            char dns1str[64], dns2str[64];
+            update_ip_address_by_qmi(ifname, NULL, &profile->ipv6);
 
-            if (profile->ipv6.DnsPrimary[0]) {
-                strcpy(dns1str, ipv6Str(profile->ipv6.DnsPrimary));
+            if (profile->ipv6.DnsPrimary[0] || profile->ipv6.DnsSecondary[0]) {
+                char dns1str[64], dns2str[64];
+
+                if (profile->ipv6.DnsPrimary[0]) {
+                    strcpy(dns1str, ipv6Str(profile->ipv6.DnsPrimary));
+                }
+
+                if (profile->ipv6.DnsSecondary[0]) {
+                    strcpy(dns2str, ipv6Str(profile->ipv6.DnsSecondary));
+                }
+
+                update_resolv_conf(6, ifname, profile->ipv6.DnsPrimary[0] ? dns1str : NULL,
+                                profile->ipv6.DnsSecondary[0] != '\0' ? dns2str : NULL);
             }
-
-            if (profile->ipv6.DnsSecondary[0]) {
-                strcpy(dns2str, ipv6Str(profile->ipv6.DnsSecondary));
-            }
-
-            update_resolv_conf(6, ifname, profile->ipv6.DnsPrimary[0] ? dns1str : NULL,
-                               profile->ipv6.DnsSecondary[0] != '\0' ? dns2str : NULL);
-        }
 
 #ifdef QL_OPENWER_NETWORK_SETUP
             ql_openwrt_setup_wan6(ifname, &profile->ipv6);
@@ -705,6 +707,7 @@ set_ipv6:
 
         pthread_create(&udhcpc_thread_id, &udhcpc_thread_attr, udhcpc_thread_function, (void*)strdup(udhcpc_cmd));
 #endif
+        }
     }
 }
 
