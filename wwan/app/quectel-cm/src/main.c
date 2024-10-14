@@ -251,6 +251,7 @@ static int usage(const char *progname) {
     dbg_time("-b                                     Enable network interface bridge function (default 0)");
     dbg_time("-v                                     Verbose log mode, for debug purpose.");
     dbg_time("-d                                     Obtain the IP address and dns through qmi");
+    dbg_time("-o                                     Let OpenWrt obtain the IP address via DHCP");
     dbg_time("[Examples]");
     dbg_time("Example 1: %s ", progname);
     dbg_time("Example 2: %s -s 3gnet ", progname);
@@ -885,6 +886,10 @@ static int parse_user_input(int argc, char **argv, PROFILE_T *profile) {
 
             case 'd':
                 profile->no_dhcp = 1;
+            break;
+
+            case 'o':
+                profile->openwrt_mode = 1;
             break;
 
             case 'u':
