@@ -41,6 +41,8 @@ proto_quectel_setup() {
 	json_get_vars pdptype dhcp dhcpv6 sourcefilter delegate ip4table
 	json_get_vars ip6table mtu $PROTO_DEFAULT_OPTIONS
 
+	echo -ne "AT+CFUN=1\r\n" > /dev/ttyUSB2
+
 	[ -n "$delay" ] || delay="5"
 	sleep "$delay"
 
