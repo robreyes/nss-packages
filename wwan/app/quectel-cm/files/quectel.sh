@@ -19,6 +19,7 @@ proto_quectel_init_config() {
 	proto_config_add_string "username"
 	proto_config_add_string "password"
 	proto_config_add_string "pincode"
+	proto_config_add_string "commport"
 	proto_config_add_int "delay"
 	proto_config_add_string "pdptype"
 	proto_config_add_boolean "dhcp"
@@ -32,16 +33,18 @@ proto_quectel_init_config() {
 
 proto_quectel_setup() {
 	local interface="$1"
-	local device apn apnv6 auth username password pincode delay pdptype pdnindex pdnindexv6 multiplexing cell_lock_4g
+	local device apn apnv6 auth username password pincode delay pdptype pdnindex pdnindexv6 multiplexing cell_lock_4g commport
 	local dhcp dhcpv6 sourcefilter delegate mtu $PROTO_DEFAULT_OPTIONS
 	local ip4table ip6table
 	local pid zone
 
-	json_get_vars device apn apnv6 auth username password pincode delay pdnindex pdnindexv6 multiplexing
+	json_get_vars device apn apnv6 auth username password pincode delay pdnindex pdnindexv6 multiplexing commport
 	json_get_vars pdptype dhcp dhcpv6 sourcefilter delegate ip4table
 	json_get_vars ip6table mtu $PROTO_DEFAULT_OPTIONS
 
-	echo -ne "AT+CFUN=1\r\n" > /dev/ttyUSB2
+	[ -n $commport ] || $commport = "/dev/ttyUSB2"
+
+	sms_tool -d $commport at "AT+CFUN=1"
 
 	[ -n "$delay" ] || delay="5"
 	sleep "$delay"
@@ -64,10 +67,10 @@ proto_quectel_setup() {
 
 		if [ "$idx" -gt 0 ]; then
 			cell_ids="${idx}${cell_ids}"
-			echo -e "AT+QNWLOCK=\"COMMON/4G\",${cell_ids}" | atinout - /dev/ttyUSB2 -
+			sms_tool -d $commport at "AT+QNWLOCK=\"COMMON/4G\",${cell_ids}"
 		fi
 	else
-		echo -e "AT+QNWLOCK=\"COMMON/4G\",0" | atinout - /dev/ttyUSB2 -
+		sms_tool -d $commport at "AT+QNWLOCK=\"COMMON/4G\",0"
 	fi
 
 	[ -n "$metric" ] || metric="0"

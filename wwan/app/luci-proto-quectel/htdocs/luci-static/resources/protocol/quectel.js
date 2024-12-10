@@ -2,6 +2,7 @@
 'require rpc';
 'require form';
 'require network';
+'require fs';
 
 var callFileList = rpc.declare({
 	object: 'file',
@@ -11,7 +12,7 @@ var callFileList = rpc.declare({
 	filter: function(list, params) {
 		var rv = [];
 		for (var i = 0; i < list.length; i++)
-			if (list[i].name.match(/^cdc-wdm/))
+			if (list[i].name.match(/^ttyUSB/) || list[i].name.match(/^cdc-wdm/) || list[i].name.match(/^ttyACM/) || list[i].name.match(/^mhi_/) || list[i].name.match(/^wwan/))
 				rv.push(params.path + list[i].name);
 		return rv.sort();
 	}
@@ -155,6 +156,17 @@ return network.registerProtocol('quectel', {
 		o.placeholder = '0';
 		o.datatype = 'uinteger';
 		o.depends('defaultroute', '1');
+
+		o = s.taboption('advanced', form.Value, 'commport', _('Communication Port'));
+		o.ucioption = 'commport';
+		o.rmempty = false;
+		o.load = function(section_id) {
+			return callFileList('/dev/').then(L.bind(function(devices) {
+				for (var i = 0; i < devices.length; i++)
+					this.value(devices[i]);
+				return form.Value.prototype.load.apply(this, [section_id]);
+			}, this));
+		};
 
         o = s.taboption('advanced', form.DynamicList, 'cell_lock_4g', _('4G Cell ID Lock'));
         o.datatype = 'string';
