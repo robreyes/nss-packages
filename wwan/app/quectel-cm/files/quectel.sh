@@ -43,7 +43,6 @@ proto_quectel_setup() {
 	json_get_vars ip6table mtu $PROTO_DEFAULT_OPTIONS
 
 	[ -n $commport ] || $commport = "/dev/ttyUSB2"
-
 	sms_tool -d $commport at "AT+CFUN=1"
 
 	[ -n "$delay" ] || delay="5"
